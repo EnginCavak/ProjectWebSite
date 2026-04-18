@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LIFT UP — Proje Taksonomi Sınıflandırıcı</title>
+<meta name="description" content="Havacılık Ar-Ge projelerini 15 taksonomi kategorisine göre otomatik sınıflandıran hibrit NLP sistemi." />
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f172a;
+    --bg-soft: #1e293b;
+    --card: #ffffff;
+    --card-soft: #f8fafc;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-soft: #475569;
+    --text-muted: #94a3b8;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --accent: #06b6d4;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-lg: 0 10px 25px -5px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0fdfa 100%);
+    min-height: 100vh;
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    background: var(--bg);
+    color: white;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0,0,0,.1);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: grid; place-items: center; font-weight: 800; font-size: 18px;
+  }
+  .brand-text h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand-text .sub { font-size: 12px; color: #94a3b8; font-weight: 500; }
+  .nav-right { display: flex; gap: 16px; align-items: center; font-size: 13px; color: #cbd5e1; }
+  .nav-right a { color: #cbd5e1; text-decoration: none; transition: color .15s; }
+  .nav-right a:hover { color: white; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 20px;
+    background: rgba(255,255,255,.1); font-size: 12px;
+  }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; }
+  .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .status-dot.demo { background: var(--warning); }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .hero h2 {
+    font-size: clamp(22px, 3.5vw, 32px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  .hero p {
+    color: var(--text-soft);
+    max-width: 640px;
+    margin: 0 auto;
+    font-size: 15px;
+  }
+  .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+  .badge {
+    padding: 4px 10px; border-radius: 20px;
+    background: white; border: 1px solid var(--border);
+    font-size: 12px; color: var(--text-soft); font-weight: 500;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .card h3 {
+    font-size: 15px; font-weight: 600;
+    margin-bottom: 4px; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h3 .icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: grid; place-items: center; color: white; font-size: 14px;
+  }
+  .card .desc { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+  label { display: block; font-size: 13px; font-weight: 500; color: var(--text-soft); margin-bottom: 6px; }
+  input[type="text"], textarea {
+    width: 100%; padding: 11px 14px;
+    border: 1px solid var(--border); border-radius: 10px;
+    font-family: inherit; font-size: 14px; color: var(--text);
+    background: var(--card-soft);
+    transition: border-color .15s, box-shadow .15s;
+    resize: vertical;
+  }
+  input[type="text"]:focus, textarea:focus {
+    outline: none; border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+    background: white;
+  }
+  textarea { min-height: 140px; }
+  .field { margin-bottom: 14px; }
+  .char-count { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 3px; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  button {
+    padding: 11px 20px;
+    border: none; border-radius: 10px;
+    font-family: inherit; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-primary {
+    background: var(--primary); color: white;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, .3);
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-secondary {
+    background: white; color: var(--text-soft);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--card-soft); }
+
+  .examples { margin-top: 14px; }
+  .examples-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .example-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    padding: 5px 11px; border-radius: 20px;
+    background: white; border: 1px solid var(--border);
+    font-size: 12px; color: var(--text-soft); cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+
+  /* Result card */
+  #result-section { display: none; }
+  .result-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white; border-radius: 12px 12px 0 0;
+  }
+  .result-header .label { font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.05em; }
+  .result-header .category { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .confidence-ring {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 15px;
+    border: 3px solid rgba(255,255,255,0.4);
+  }
+  .result-body { padding: 20px 22px; background: white; border-radius: 0 0 12px 12px; }
+
+  .top-k-list { margin-top: 0; }
+  .rank-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .rank-item:last-child { border-bottom: none; }
+  .rank-num {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--card-soft); color: var(--text-soft);
+    display: grid; place-items: center; font-weight: 700; font-size: 13px;
+    flex-shrink: 0;
+  }
+  .rank-item:first-child .rank-num {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+  }
+  .rank-content { flex: 1; min-width: 0; }
+  .rank-cat { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .rank-bar {
+    height: 6px; background: var(--card-soft); border-radius: 3px;
+    overflow: hidden; position: relative;
+  }
+  .rank-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 3px; transition: width .6s ease-out;
+  }
+  .rank-score {
+    font-weight: 600; font-size: 13px; color: var(--text-soft);
+    min-width: 50px; text-align: right;
+  }
+  .rank-detail {
+    font-size: 11px; color: var(--text-muted); margin-top: 3px;
+  }
+
+  .keywords-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .keywords-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .keyword-pill {
+    display: inline-block; padding: 4px 10px; margin: 3px;
+    background: #eff6ff; color: var(--primary);
+    border-radius: 20px; font-size: 12px; font-weight: 500;
+  }
+  .keyword-pill.partial { background: #fef3c7; color: #92400e; }
+
+  /* Loading */
+  .loader {
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,.3); border-top-color: white;
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    background: #fef2f2; border: 1px solid #fecaca;
+    color: #991b1b; padding: 12px 16px; border-radius: 10px;
+    margin-top: 16px; font-size: 13px;
+  }
+
+  /* Settings modal */
+  .modal-backdrop {
+    display: none;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: white; border-radius: 14px; padding: 24px;
+    max-width: 440px; width: 90%;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal h3 { margin-bottom: 16px; }
+  .modal .helper { font-size: 12px; color: var(--text-muted); margin-top: -8px; margin-bottom: 14px; }
+
+  footer {
+    text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;
+  }
+  footer a { color: var(--primary); text-decoration: none; }
+
+  .info-banner {
+    background: #fef3c7; border: 1px solid #fde68a; color: #854d0e;
+    padding: 10px 14px; border-radius: 10px; font-size: 13px;
+    margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">L</div>
+    <div class="brand-text">
+      <h1>LIFT UP Taksonomi Sınıflandırıcı</h1>
+      <div class="sub">Havacılık Ar-Ge · Hibrit NLP (BERT + KeyBERT + ByT5)</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <span class="status-pill">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Bağlantı kontrol ediliyor...</span>
+    </span>
+    <a href="#" onclick="openSettings(event)">⚙</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h2>Proje taksonomi sınıflandırması</h2>
+    <p>Proje başlığı ve özetini girin; sistem 4 modelle (BERT, KeyBERT, ByT5, Hibrit) anahtar kelimeleri çıkarır ve 15 havacılık kategorisinden birine atar.</p>
+    <div class="badges">
+      <span class="badge">🎓 Sakarya Üniversitesi Bitirme Projesi</span>
+      <span class="badge">🔬 Hibrit NLP Pipeline</span>
+      <span class="badge">🇹🇷 Türkçe Metin</span>
+    </div>
+  </section>
+
+  <div id="demoBanner" class="info-banner" style="display:none;">
+    ⚠️ <strong>Demo modu:</strong> Backend bağlantısı yok, örnek sonuçlar gösteriliyor. Ayarlardan API URL girin.
+  </div>
+
+  <div class="grid">
+    <!-- Input card -->
+    <div class="card">
+      <h3><span class="icon">📝</span> Proje Girişi</h3>
+      <div class="desc">Başlık ve özet zorunlu; anahtar kelimeler (varsa) isteğe bağlı.</div>
+
+      <div class="field">
+        <label for="baslik">Başlık</label>
+        <input type="text" id="baslik" placeholder="Örn: Robotik kol kontrolü ROS Gazebo" />
+      </div>
+
+      <div class="field">
+        <label for="ozet">Özet</label>
+        <textarea id="ozet" placeholder="Proje özetini buraya yapıştırın..."></textarea>
+        <div class="char-count"><span id="ozetCount">0</span> karakter</div>
+      </div>
+
+      <div class="field">
+        <label for="keywords">Anahtar Kelimeler (opsiyonel, virgülle ayırın)</label>
+        <input type="text" id="keywords" placeholder="robot, ros, kinematik, slam" />
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="classifyBtn" onclick="classify()">
+          <span>Sınıflandır</span>
+        </button>
+        <button class="btn-secondary" onclick="clearForm()">Temizle</button>
+      </div>
+
+      <div class="examples">
+        <div class="examples-title">Hızlı Örnekler</div>
+        <div class="example-chips">
+          <span class="chip" onclick="loadExample('robotik')">🤖 Robotik</span>
+          <span class="chip" onclick="loadExample('kompozit')">🧬 Kompozit</span>
+          <span class="chip" onclick="loadExample('aerodinamik')">✈️ Aerodinamik</span>
+          <span class="chip" onclick="loadExample('yz')">🧠 Yapay Zeka</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result card -->
+    <div class="card">
+      <h3><span class="icon">🎯</span> Sınıflandırma Sonucu</h3>
+      <div class="desc">Tahmin edilen kategori, güven skoru ve alternatif adaylar.</div>
+
+      <div id="emptyState" style="text-align:center; padding:40px 20px; color:var(--text-muted);">
+        <div style="font-size:48px; margin-bottom:10px;">🔍</div>
+        <div>Sınıflandırma için proje bilgilerini girin</div>
+      </div>
+
+      <div id="loadingState" style="display:none; text-align:center; padding:40px 20px; color:var(--text-soft);">
+        <div style="font-size:32px; margin-bottom:10px;">⏳</div>
+        <div>Modeller çalışıyor...</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">~3-5 saniye</div>
+      </div>
+
+      <div id="errorState" style="display:none;"></div>
+
+      <div id="result-section">
+        <div class="result-header">
+          <div>
+            <div class="label">En iyi tahmin</div>
+            <div class="category" id="topCategory">–</div>
+          </div>
+          <div class="confidence-ring" id="confidenceRing">–</div>
+        </div>
+        <div class="result-body">
+          <div class="top-k-list" id="topKList"></div>
+          <div class="keywords-section" id="keywordsSection" style="display:none;">
+            <div class="keywords-title">Eşleşen Anahtar Kelimeler</div>
+            <div id="matchedKeywords"></div>
+          </div>
+          <div class="keywords-section" id="extractedSection" style="display:none;">
+            <div class="keywords-title">Çıkarılan Anahtar Kelimeler</div>
+            <div id="extractedKeywords"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Settings modal -->
+<div class="modal-backdrop" id="settingsModal" onclick="closeSettings(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>⚙ Backend Ayarları</h3>
+    <div class="field">
+      <label for="apiUrl">API URL'i</label>
+      <input type="text" id="apiUrl" placeholder="https://xxxx.hf.space/classify veya https://xxxx.ngrok.io/classify" />
+      <div class="helper">Hugging Face Spaces veya ngrok tunnel URL'i. Boş bırakılırsa demo modu çalışır.</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="saveSettings()">Kaydet</button>
+      <button class="btn-secondary" onclick="closeSettings()">İptal</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Engin Cavak — B221210056 · Sakarya Üniversitesi Bilgisayar Mühendisliği<br />
+  <a href="https://github.com" target="_blank">GitHub</a> · Danışman: Prof. Dr. Nilüfer Yurtay
+</footer>
+
+<script>
+// ===== KONFIGÜRASYON =====
+const DEFAULT_API_URL = ''; // Buraya HF Spaces / ngrok URL'i girilecek
+let API_URL = localStorage.getItem('liftup_api_url') || DEFAULT_API_URL;
+
+// 15 kategori (renk kodları için)
+const CATEGORIES = [
+  'Aerodinamik & Akışkanlar', 'Uçuş Mekaniği', 'Kontrol & Aviyonik',
+  'Otonom Sistemler & Robotik', 'Görüntü İşleme & Algılama',
+  'Yapay Zekâ & Veri Bilimi', 'Yapılar, Mukavemet & Analiz',
+  'Kompozit Yapılar', 'Malzeme, Kaplama & Yüzey Teknolojileri',
+  'Üretim Prosesleri', 'Eklemeli İmalat', 'Elektronik & Enerji Sistemleri',
+  'Haberleşme & Elektronik Harp', 'Endüstri & Dijitalleşme', 'Yazılım Geliştirme'
+];
+
+// ===== ÖRNEK PROJELER =====
+const EXAMPLES = {
+  robotik: {
+    baslik: 'Endüstriyel robot manipülatör ters kinematik kontrolü',
+    ozet: '6 eksenli bir robot kol için ROS tabanlı ters kinematik algoritması geliştirilmiştir. Gazebo simülatöründe gerçek zamanlı hareket planlaması ve engel kaçınma test edilmiştir. SLAM ile otonom navigasyon entegre edilmiştir.',
+    keywords: 'robot, ros, gazebo, kinematik, slam, manipülatör'
+  },
+  kompozit: {
+    baslik: 'Karbon fiber takviyeli epoksi kompozit plaka optimizasyonu',
+    ozet: 'CFRP plaka tasarımında ply oryantasyonu ve katman kalınlığı optimizasyonu gerçekleştirilmiş, çekme ve eğilme testleri ile mekanik karakterizasyon yapılmıştır. Tsai-Wu hasar kriteri kullanılmış, delaminasyon analizi yapılmıştır.',
+    keywords: 'cfrp, kompozit, epoksi, karbon fiber, ply oryantasyon, tsai-wu'
+  },
+  aerodinamik: {
+    baslik: 'Açık kaynaklı HAD ile kanat-gövde aerodinamik analizi',
+    ozet: 'OpenFOAM kullanılarak sıkıştırılabilir akış rejiminde bir kanat-gövde modelinin CFD analizleri yapılmıştır. Rüzgar tüneli deneyleri ile sonlu hacimler metodu sonuçları karşılaştırılmıştır. Türbülans modelleri incelenmiştir.',
+    keywords: 'cfd, openfoam, aerodinamik, sıkıştırılabilir akış, türbülans, sonlu hacimler'
+  },
+  yz: {
+    baslik: 'YOLOv8 ile gerçek zamanlı nesne tespiti sistemi',
+    ozet: 'Derin öğrenme tabanlı nesne tespiti için YOLOv8 algoritması kullanılmış, CNN mimarisi optimize edilerek görüntü sınıflandırma doğruluğu artırılmıştır. LSTM ile zaman serisi analizi entegre edilmiştir.',
+    keywords: 'yolo, cnn, lstm, derin öğrenme, nesne tespiti, görüntü sınıflandırma'
+  }
+};
+
+// ===== DEMO SONUÇLARI =====
+const DEMO_RESULTS = {
+  robotik: {
+    prediction: 'Otonom Sistemler & Robotik',
+    confidence: 0.847,
+    top_3: [
+      { kategori: 'Otonom Sistemler & Robotik', guven: 0.847, keyword_skor: 0.91, semantic_skor: 0.81, eslesmeler: ['robot', 'ros', 'gazebo', 'kinematik', 'slam'] },
+      { kategori: 'Kontrol & Aviyonik', guven: 0.421, keyword_skor: 0.05, semantic_skor: 0.67, eslesmeler: [] },
+      { kategori: 'Yapay Zekâ & Veri Bilimi', guven: 0.384, keyword_skor: 0.02, semantic_skor: 0.63, eslesmeler: [] }
+    ]
+  },
+  kompozit: {
+    prediction: 'Kompozit Yapılar',
+    confidence: 0.812,
+    top_3: [
+      { kategori: 'Kompozit Yapılar', guven: 0.812, keyword_skor: 0.88, semantic_skor: 0.77, eslesmeler: ['cfrp', 'kompozit', 'epoksi', 'karbon fiber', 'tsai-wu', 'delaminasyon'] },
+      { kategori: 'Yapılar, Mukavemet & Analiz', guven: 0.456, keyword_skor: 0.12, semantic_skor: 0.68, eslesmeler: [] },
+      { kategori: 'Malzeme, Kaplama & Yüzey Teknolojileri', guven: 0.398, keyword_skor: 0.08, semantic_skor: 0.60, eslesmeler: [] }
+    ]
+  },
+  aerodinamik: {
+    prediction: 'Aerodinamik & Akışkanlar',
+    confidence: 0.889,
+    top_3: [
+      { kategori: 'Aerodinamik & Akışkanlar', guven: 0.889, keyword_skor: 0.95, semantic_skor: 0.85, eslesmeler: ['cfd', 'openfoam', 'aerodinamik', 'sıkıştırılabilir akış', 'türbülans', 'sonlu hacimler metodu'] },
+      { kategori: 'Uçuş Mekaniği', guven: 0.423, keyword_skor: 0.03, semantic_skor: 0.70, eslesmeler: [] },
+      { kategori: 'Yapılar, Mukavemet & Analiz', guven: 0.341, keyword_skor: 0.02, semantic_skor: 0.56, eslesmeler: [] }
+    ]
+  },
+  yz: {
+    prediction: 'Yapay Zekâ & Veri Bilimi',
+    confidence: 0.873,
+    top_3: [
+      { kategori: 'Yapay Zekâ & Veri Bilimi', guven: 0.873, keyword_skor: 0.93, semantic_skor: 0.83, eslesmeler: ['yolo', 'cnn', 'lstm', 'derin öğrenme', 'görüntü sınıflandırma'] },
+      { kategori: 'Görüntü İşleme & Algılama', guven: 0.621, keyword_skor: 0.18, semantic_skor: 0.92, eslesmeler: ['nesne tespiti', 'görüntü sınıflandırma'] },
+      { kategori: 'Otonom Sistemler & Robotik', guven: 0.312, keyword_skor: 0.0, semantic_skor: 0.52, eslesmeler: [] }
+    ]
+  }
+};
+
+// ===== OLAY DİNLEYİCİLERİ =====
+document.getElementById('ozet').addEventListener('input', e => {
+  document.getElementById('ozetCount').textContent = e.target.value.length;
+});
+
+// ===== BACKEND BAĞLANTI KONTROLÜ =====
+async function checkBackendStatus() {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  const banner = document.getElementById('demoBanner');
+
+  if (!API_URL) {
+    dot.className = 'status-dot demo';
+    text.textContent = 'Demo modu';
+    banner.style.display = 'flex';
+    return false;
+  }
+
+  try {
+    // Simple health check — just try to reach root or /health
+    const healthUrl = API_URL.replace(/\/classify\/?$/, '/health').replace(/\/$/, '') + '/health';
+    const resp = await fetch(healthUrl, { method: 'GET', mode: 'cors' });
+    if (resp.ok) {
+      dot.className = 'status-dot online';
+      text.textContent = 'Canlı (backend bağlı)';
+      banner.style.display = 'none';
+      return true;
+    }
+    throw new Error('Health check failed');
+  } catch (e) {
+    dot.className = 'status-dot demo';
+    text.textContent = 'Demo modu (backend erişilemez)';
+    banner.style.display = 'flex';
+    return false;
+  }
+}
+
+// ===== ANA SINIFLANDIRMA =====
+async function classify() {
+  const baslik = document.getElementById('baslik').value.trim();
+  const ozet = document.getElementById('ozet').value.trim();
+  const keywordsRaw = document.getElementById('keywords').value.trim();
+
+  if (!baslik || !ozet) {
+    showError('Başlık ve özet zorunludur.');
+    return;
+  }
+
+  showLoading();
+  const btn = document.getElementById('classifyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loader"></span><span>Analiz ediliyor...</span>';
+
+  const keywords = keywordsRaw
+    ? keywordsRaw.split(',').map(k => k.trim()).filter(Boolean)
+    : [];
+
+  try {
+    let result;
+    if (API_URL) {
+      result = await callBackend(baslik, ozet, keywords);
+    } else {
+      result = await getDemoResult(baslik, ozet);
+    }
+    renderResult(result, keywords);
+  } catch (e) {
+    showError(`Sınıflandırma başarısız: ${e.message}. Demo modu kullanılıyor.`);
+    const demo = await getDemoResult(baslik, ozet);
+    renderResult(demo, keywords);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Sınıflandır</span>';
+  }
+}
+
+async function callBackend(baslik, ozet, keywords) {
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ baslik, ozet, keywords }),
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return await resp.json();
+}
+
+// ===== DEMO SONUÇ TAHMİNİ =====
+async function getDemoResult(baslik, ozet) {
+  await new Promise(r => setTimeout(r, 600)); // fake latency
+
+  const text = (baslik + ' ' + ozet).toLowerCase();
+  // Basit keyword eşleme ile demo cevabı seç
+  const scoring = {
+    robotik: (text.match(/robot|ros|gazebo|kinemati|slam|manipülat/g) || []).length,
+    kompozit: (text.match(/kompozit|cfrp|fiber|epoksi|laminan|ply/g) || []).length,
+    aerodinamik: (text.match(/aerodinami|cfd|hava|akış|türbülans|rüzgar/g) || []).length,
+    yz: (text.match(/yapay zek|derin öğren|yolo|cnn|lstm|makine öğren/g) || []).length,
+  };
+  const best = Object.entries(scoring).sort((a, b) => b[1] - a[1])[0][0];
+  return DEMO_RESULTS[best] || DEMO_RESULTS.aerodinamik;
+}
+
+// ===== SONUÇ GÖSTERME =====
+function renderResult(result, extractedKeywords) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('errorState').style.display = 'none';
+  document.getElementById('result-section').style.display = 'block';
+
+  // Top category
+  document.getElementById('topCategory').textContent = result.prediction;
+  document.getElementById('confidenceRing').textContent = `${Math.round(result.confidence * 100)}%`;
+
+  // Top-K
+  const list = document.getElementById('topKList');
+  list.innerHTML = '';
+  result.top_3.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'rank-item';
+    div.innerHTML = `
+      <div class="rank-num">${idx + 1}</div>
+      <div class="rank-content">
+        <div class="rank-cat">${item.kategori}</div>
+        <div class="rank-bar"><div class="rank-bar-fill" style="width:${item.guven * 100}%"></div></div>
+        <div class="rank-detail">
+          Keyword: ${(item.keyword_skor * 100).toFixed(1)}% · Semantic: ${(item.semantic_skor * 100).toFixed(1)}%
+        </div>
+      </div>
+      <div class="rank-score">${(item.guven * 100).toFixed(1)}%</div>
+    `;
+    list.appendChild(div);
+  });
+
+  // Matched keywords from top category
+  const matched = result.top_3[0].eslesmeler || [];
+  const matchedSec = document.getElementById('keywordsSection');
+  if (matched.length > 0) {
+    matchedSec.style.display = 'block';
+    document.getElementById('matchedKeywords').innerHTML = matched
+      .map(k => `<span class="keyword-pill">${k}</span>`).join('');
+  } else {
+    matchedSec.style.display = 'none';
+  }
+
+  // Extracted keywords (from user input or backend response)
+  const extracted = result.extracted_keywords || extractedKeywords;
+  const extSec = document.getElementById('extractedSection');
+  if (extracted && extracted.length > 0) {
+    extSec.style.display = 'block';
+    document.getElementById('extractedKeywords').innerHTML = extracted
+      .map(k => `<span class="keyword-pill partial">${k}</span>`).join('');
+  } else {
+    extSec.style.display = 'none';
+  }
+}
+
+function showLoading() {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('result-section').style.display = 'none';
+  document.getElementById('errorState').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'block';
+}
+
+function showError(msg) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('errorState').style.display = 'block';
+  document.getElementById('errorState').innerHTML = `<div class="error-box">⚠️ ${msg}</div>`;
+}
+
+// ===== ÖRNEK YÜKLEME =====
+function loadExample(key) {
+  const ex = EXAMPLES[key];
+  if (!ex) return;
+  document.getElementById('baslik').value = ex.baslik;
+  document.getElementById('ozet').value = ex.ozet;
+  document.getElementById('keywords').value = ex.keywords;
+  document.getElementById('ozetCount').textContent = ex.ozet.length;
+}
+
+function clearForm() {
+  document.getElementById('baslik').value = '';
+  document.getElementById('ozet').value = '';
+  document.getElementById('keywords').value = '';
+  document.getElementById('ozetCount').textContent = '0';
+  document.getElementById('emptyState').style.display = 'block';
+  document.getElementById('result-section').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('errorState').style.display = 'none';
+}
+
+// ===== AYARLAR MODAL =====
+function openSettings(e) {
+  if (e) e.preventDefault();
+  document.getElementById('apiUrl').value = API_URL;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings(e) {
+  if (e && e.target !== e.currentTarget && e.target.tagName !== 'BUTTON') return;
+  document.getElementById('settingsModal').classList.remove('open');
+}
+function saveSettings() {
+  const newUrl = document.getElementById('apiUrl').value.trim();
+  API_URL = newUrl;
+  if (newUrl) {
+    localStorage.setItem('liftup_api_url', newUrl);
+  } else {
+    localStorage.removeItem('liftup_api_url');
+  }
+  closeSettings();
+  checkBackendStatus();
+}
+
+// ===== BAŞLATMA =====
+checkBackendStatus();
+</script>
+</body>
+</html>
