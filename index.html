@@ -564,7 +564,7 @@ async function callBackend(baslik, ozet, keywords) {
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ baslik, ozet, keywords }),
+    body: JSON.stringify({ baslik, ozet, keywords, use_gemini: true }),
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return await resp.json();
@@ -616,6 +616,20 @@ function renderResult(result, extractedKeywords) {
     `;
     list.appendChild(div);
   });
+
+ // Gemini sonucu varsa göster
+if (result.gemini_prediction && result.gemini_available) {
+  const gemDiv = document.createElement('div');
+  gemDiv.style.cssText = 'margin-top:12px; padding:10px 14px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0; font-size:13px;';
+  gemDiv.innerHTML = `
+    <span style="color:#166534; font-weight:600;">🤖 Gemini tahmini:</span>
+    <span style="color:#15803d; margin-left:6px;">${result.gemini_prediction}</span>
+    ${result.gemini_prediction === result.prediction 
+      ? '<span style="color:#16a34a; margin-left:8px;">✓ Hibrit ile örtüşüyor</span>' 
+      : '<span style="color:#ca8a04; margin-left:8px;">⚡ Alternatif görüş</span>'}
+  `;
+  list.after(gemDiv);
+}
 
   // Matched keywords from top category
   const matched = result.top_3[0].eslesmeler || [];
